@@ -15,7 +15,7 @@ from pathlib import Path
 
 import gradio as gr
 
-from sd21_pipeline import SD21Pipeline
+from sd21_pipeline import DEFAULT_SD_MODEL_ID, SD21Pipeline
 from stackgan import StackGANInference
 
 
@@ -29,8 +29,9 @@ DISCLAIMER = (
     "**StackGAN-v2 was trained only on the CUB-200-2011 bird dataset (2017).** "
     "It cannot draw anything that isn't a bird, and it expects pre-computed "
     "char-CNN-RNN text embeddings — that's why its caption is a dropdown, not "
-    "free text. Stable Diffusion 2.1 (2022) takes free text and was trained on "
-    "LAION-5B. The visible quality and generality gap is the point of the demo."
+    "free text. The Stable Diffusion side (2022) takes free text and was "
+    "trained on LAION-5B. The visible quality and generality gap is the point "
+    "of the demo."
 )
 
 SYNTHETIC_NOTE = (
@@ -67,12 +68,19 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--server-name", default="0.0.0.0")
     p.add_argument("--server-port", type=int, default=7860)
     p.add_argument("--no-stackgan", action="store_true",
-                   help="run with only the SD 2.1 panel (skips StackGAN load if weights missing)")
+                   help="run with only the SD panel (skips StackGAN load if weights missing)")
+    p.add_argument("--sd-model-id", default=DEFAULT_SD_MODEL_ID,
+                   help=("HuggingFace model id for the diffusion side. Default is the "
+                         "ungated `stable-diffusion-v1-5/stable-diffusion-v1-5`. "
+                         "Override to e.g. `stabilityai/stable-diffusion-2-1-base` "
+                         "if you've accepted its license and exported HF_TOKEN."))
     return p.parse_args()
 
 
 def build_app(args: argparse.Namespace) -> gr.Blocks:
-    sd_pipe = SD21Pipeline(device=args.device)
+    sd_model_id = getattr(args, "sd_model_id", DEFAULT_SD_MODEL_ID)
+    print(f"[init] diffusion model id = {sd_model_id}")
+    sd_pipe = SD21Pipeline(model_id=sd_model_id, device=args.device)
 
     stackgan: StackGANInference | None = None
     if not args.no_stackgan:
@@ -112,21 +120,25 @@ def build_app(args: argparse.Namespace) -> gr.Blocks:
         if not prompt:
             return None, "Enter a free-text caption."
         t0 = time.perf_counter()
-        img = sd_pipe.generate(prompt, seed=int(seed))
+        try:
+            img = sd_pipe.generate(prompt, seed=int(seed))
+        except Exception as exc:
+            return None, f"**Stable Diffusion error:** {exc}"
         dt = time.perf_counter() - t0
-        return img, f"Stable Diffusion 2.1 · {dt:.2f} s · 512×512"
+        return img, f"Stable Diffusion ({sd_model_id}) · {dt:.2f} s · 512×512"
 
     def run_both(label: str | None, prompt: str, seed: int):
         sg_img, sg_info = run_stackgan(label, seed)
         sd_img, sd_info = run_sd(prompt, seed)
         return sg_img, sg_info, sd_img, sd_info
 
-    with gr.Blocks(title="StackGAN-v2 vs Stable Diffusion 2.1") as demo:
+    sd_short = sd_model_id.split("/")[-1]
+    with gr.Blocks(title=f"StackGAN-v2 vs {sd_short}") as demo:
         synthetic_banner = ""
         if stackgan is not None and stackgan.using_synthetic_embeddings:
             synthetic_banner = "\n\n" + SYNTHETIC_NOTE
         gr.Markdown(
-            "# Text-to-Image: StackGAN-v2 (CUB) vs Stable Diffusion 2.1\n\n"
+            f"# Text-to-Image: StackGAN-v2 (CUB) vs {sd_short}\n\n"
             f"{DISCLAIMER}{synthetic_banner}"
         )
 
@@ -159,8 +171,8 @@ def build_app(args: argparse.Namespace) -> gr.Blocks:
                         sg_image = gr.Image(label="StackGAN-v2 output", type="pil")
                         sg_info = gr.Markdown("Pick a caption and press Generate.")
                     with gr.Column():
-                        gr.Markdown("### Stable Diffusion 2.1 (2022, LAION-5B)")
-                        sd_image = gr.Image(label="SD 2.1 output", type="pil")
+                        gr.Markdown(f"### Stable Diffusion ({sd_short})\n2022 latent diffusion · LAION-5B")
+                        sd_image = gr.Image(label="SD output", type="pil")
                         sd_info = gr.Markdown("Type a prompt and press Generate.")
 
         go.click(

@@ -24,7 +24,9 @@ pedagogical point.
 | Model | Year | Trained on | Input | Output | Params |
 | --- | :---: | --- | --- | :---: | :---: |
 | **StackGAN-v2** (StackGAN++) | 2017 | CUB-200-2011 (200 bird species) | Pre-computed `char-CNN-RNN` embedding (CUB-test dropdown) | 256 × 256 | ~21 M |
-| **Stable Diffusion 2.1 base** | 2022 | LAION-5B (~5 B image-text pairs) | Free-text prompt | 512 × 512 | ~1.3 B |
+| **Stable Diffusion v1.5**¹ | 2022 | LAION-2B-en | Free-text prompt | 512 × 512 | ~860 M |
+
+¹ Default uses the ungated community mirror `stable-diffusion-v1-5/stable-diffusion-v1-5` so the demo runs without a HuggingFace token. Stability AI's `stable-diffusion-2-1-base` (and most of their other models) was gated in late 2024; you can still opt into it via `--sd-model-id stabilityai/stable-diffusion-2-1-base` plus `HF_TOKEN=...` and license acceptance — see [Configuration](#configuration).
 
 ---
 
@@ -67,11 +69,11 @@ pedagogical point.
 | `pip install -r requirements.txt` | ~2 GB cached | ~60 s |
 | StackGAN-v2 generator (Google Drive) | 79 MB | ~25 s |
 | CUB embeddings pickle (Kaggle) | ~120 MB | ~30 s |
-| Stable Diffusion 2.1 base (HF Hub) | ~5 GB | ~90 s |
+| Stable Diffusion v1.5 (HF Hub, ungated) | ~4 GB | ~75 s |
 | Gradio launch + share URL | — | ~10 s |
 | **Total** | | **~3.5 min** |
 
-Per-image inference timing on T4: **StackGAN ~0.4 s** · **SD 2.1 ~6 s** (25 DPM-Solver steps).
+Per-image inference timing on T4: **StackGAN ~0.4 s** · **SD v1.5 ~5 s** (25 DPM-Solver steps).
 
 ---
 
@@ -179,16 +181,20 @@ The state-dict key naming is preserved exactly, so the official
 `netG_210000.pth` checkpoint loads with **0 missing / 0 unexpected keys** —
 verified at startup.
 
-### Stable Diffusion 2.1 wrapper
+### Stable Diffusion wrapper
 
 [`sd21_pipeline.py`](sd21_pipeline.py) wraps `diffusers.StableDiffusionPipeline` for
-the **ungated** `stabilityai/stable-diffusion-2-1-base` checkpoint (so no HF auth
-token is needed):
+any SD-compatible checkpoint. Default is the **ungated community mirror**
+`stable-diffusion-v1-5/stable-diffusion-v1-5` so the demo loads with no HF
+token. Override via `--sd-model-id` (or `SD_MODEL_ID` env var) and `HF_TOKEN`
+if you want a gated model like SD 2.1.
 
 - `torch_dtype=torch.float16` on CUDA, `float32` on CPU.
-- `DPMSolverMultistepScheduler` (25 steps default — high quality, ~6 s on T4).
+- `DPMSolverMultistepScheduler` (25 steps default — high quality, ~5 s on T4).
 - `safety_checker=None` for course demo use.
 - `enable_attention_slicing()` to reduce peak VRAM.
+- 401 errors during load are caught and rewritten into a clear "the model is
+  gated, set HF_TOKEN or pick an ungated id" message.
 
 ---
 
@@ -305,7 +311,8 @@ if self.embeddings is None:
 | `--share` | `true` | Gradio public share URL on launch |
 | `--server-name` | `0.0.0.0` | local bind address |
 | `--server-port` | `7860` | local port |
-| `--no-stackgan` | (off) | run SD 2.1 only (e.g. before the StackGAN download) |
+| `--no-stackgan` | (off) | run SD only (e.g. before the StackGAN download) |
+| `--sd-model-id` | `stable-diffusion-v1-5/stable-diffusion-v1-5` | any HF model id with the SD pipeline API. Override to `stabilityai/stable-diffusion-2-1-base` etc. once you've set `HF_TOKEN` and accepted the model's license |
 
 `download_weights.py`:
 
@@ -340,6 +347,24 @@ if self.embeddings is None:
 ## Troubleshooting
 
 A list of every gotcha encountered during development, with the fix.
+
+### `OSError: Cannot load model stabilityai/stable-diffusion-2-1-base ... 401 Client Error`
+
+Stability AI gated most of their HuggingFace models in late 2024. The repo
+exists but anonymous access is denied. Fix one of two ways:
+
+**A. Use the default ungated SD 1.5** (no setup) — just don't override
+`--sd-model-id`. The demo's pedagogical contrast still holds: a 2022 latent
+diffusion model trained on LAION-2B-en vs a 2017 GAN trained on 200 bird
+species.
+
+**B. Authenticate to Hugging Face** if you really want SD 2.1:
+1. Visit <https://huggingface.co/stabilityai/stable-diffusion-2-1-base> and
+   click "Agree and access repository."
+2. Create a token at <https://huggingface.co/settings/tokens> (a read token
+   is enough).
+3. Run with: `HF_TOKEN=hf_xxx python app.py --sd-model-id stabilityai/stable-diffusion-2-1-base`
+   (PowerShell: `$env:HF_TOKEN="hf_xxx"; python app.py --sd-model-id stabilityai/stable-diffusion-2-1-base`).
 
 ### `RuntimeError: Expected hasRecord("version") to be true` when loading the .pth
 
