@@ -9,5 +9,4 @@ Pillow>=10.0
 numpy>=1.26
 gdown>=5.1
 kaggle>=1.6
-PyYAML>=6.0
 audioop-lts>=0.2; python_version >= "3.13"

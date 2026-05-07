@@ -1,25 +1,8 @@
-"""Download StackGAN-v2 pretrained CUB weights and embedding pickle.
+"""Download StackGAN-v2 weights and CUB embeddings.
 
-Two artifacts:
-  1. Generator weights (`netG_210000.pth`)  — Google Drive (StackGAN-v2 README)
-  2. char-CNN-RNN test embeddings pickle    — Kaggle mirror (the original
-     2017-era Google Drive ID is permanently dead)
-
-The Kaggle source needs a one-time API token (`~/.kaggle/kaggle.json`).
-On Colab use:
-    from google.colab import files
-    files.upload()  # upload kaggle.json
-    !mkdir -p ~/.kaggle && mv kaggle.json ~/.kaggle/ && chmod 600 ~/.kaggle/kaggle.json
-
-Run:
-    python download_weights.py
-
-Files written:
-    weights/netG_210000.pth
-    stackgan/embeddings/char-CNN-RNN-embeddings.pickle
+  python download_weights.py
+  python download_weights.py --skip-embeddings   # if you don't have a Kaggle token
 """
-
-from __future__ import annotations
 
 import argparse
 import shutil
@@ -30,19 +13,22 @@ from pathlib import Path
 import gdown
 
 
-# Source: hanzhanggit/StackGAN-v2 README — "StackGAN-v2 for bird"
-STACKGAN_V2_BIRD_WEIGHTS_ID = "1s5Yf3nFiXx0lltMFOiJWB6s1LP24RcwH"
+# StackGAN-v2 birds generator (Google Drive link is a zip containing
+# birds_3stages/netG_210000.pth)
+GDRIVE_WEIGHTS_ID = "1s5Yf3nFiXx0lltMFOiJWB6s1LP24RcwH"
 
-# Kaggle dataset hosting char-CNN-RNN embeddings (mirror of the dead Drive ID)
+# Kaggle dataset that mirrors the CUB char-CNN-RNN embeddings pickle.
+# The original Google Drive ID for it is dead.
 KAGGLE_DATASET = "somthirthabhowmk2001/text-to-image-cub-200-2011"
 
-# What the embeddings pickle is called inside the dataset (we glob for it
-# regardless of subdirectory — different mirrors layout it differently)
-EMBEDDINGS_GLOB = "char-CNN-RNN-embeddings.pickle"
-TEST_EMBEDDINGS_GLOB = "test/char-CNN-RNN-embeddings.pickle"
+
+HERE = Path(__file__).parent
+WEIGHTS_PATH = HERE / "weights" / "netG_210000.pth"
+EMBEDDINGS_PICKLE = HERE / "stackgan" / "embeddings" / "char-CNN-RNN-embeddings.pickle"
+KAGGLE_CACHE = HERE / ".cache" / "kaggle"
 
 
-def _is_zip(path: Path) -> bool:
+def _is_zip(path):
     try:
         with open(path, "rb") as f:
             return f.read(4) == b"PK\x03\x04"
@@ -50,132 +36,85 @@ def _is_zip(path: Path) -> bool:
         return False
 
 
-def _extract_pth_from_zip(archive: Path, target_name: str, out: Path) -> bool:
-    """Extract <archive>'s file ending with target_name to out. Returns True on success."""
-    with zipfile.ZipFile(archive) as zf:
-        candidates = [n for n in zf.namelist() if n.endswith(target_name)]
-        if not candidates:
-            return False
-        with zf.open(candidates[0]) as src, open(out, "wb") as dst:
-            dst.write(src.read())
-        print(f"  [unzip ] {candidates[0]} -> {out}")
-        return True
-
-
-def gdrive_download(file_id: str, out: Path, force: bool) -> None:
-    """Download from Google Drive. If the result is a zip, transparently extract
-    the file matching out.name (case-sensitive).
-    """
-    out.parent.mkdir(parents=True, exist_ok=True)
-    if out.exists() and not force and not _is_zip(out):
-        print(f"  [skip] already present: {out}")
+def download_stackgan_weights(force=False):
+    if WEIGHTS_PATH.exists() and not force:
+        print(f"  [skip] {WEIGHTS_PATH}")
         return
-    url = f"https://drive.google.com/uc?id={file_id}"
-    print(f"  [gdrive] {url} -> {out}")
-    gdown.download(url, str(out), quiet=False)
+    WEIGHTS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    url = f"https://drive.google.com/uc?id={GDRIVE_WEIGHTS_ID}"
+    print(f"  [get ] {url}")
+    gdown.download(url, str(WEIGHTS_PATH), quiet=False)
 
-    if _is_zip(out):
-        archive = out.with_suffix(out.suffix + ".zip")
-        out.rename(archive)
-        if not _extract_pth_from_zip(archive, out.name, out):
-            raise SystemExit(
-                f"  Downloaded {archive} is a zip but contains no '{out.name}'; "
-                "inspect manually."
-            )
+    if _is_zip(WEIGHTS_PATH):
+        archive = WEIGHTS_PATH.with_suffix(".pth.zip")
+        WEIGHTS_PATH.rename(archive)
+        with zipfile.ZipFile(archive) as zf:
+            inner = next(n for n in zf.namelist() if n.endswith("netG_210000.pth"))
+            with zf.open(inner) as src, open(WEIGHTS_PATH, "wb") as dst:
+                dst.write(src.read())
+        print(f"  [unzip] {inner} -> {WEIGHTS_PATH}")
         archive.unlink()
 
 
-def kaggle_download(dataset: str, out_dir: Path, force: bool) -> Path:
-    """Download a Kaggle dataset into out_dir/<slug>/ and return the directory."""
-    slug = dataset.split("/")[-1]
-    target = out_dir / slug
-    if target.exists() and any(target.iterdir()) and not force:
-        print(f"  [skip] kaggle dataset already present: {target}")
-        return target
-    target.mkdir(parents=True, exist_ok=True)
+def download_embeddings(force=False):
+    if EMBEDDINGS_PICKLE.exists() and not force:
+        print(f"  [skip] {EMBEDDINGS_PICKLE}")
+        return
 
     try:
         from kaggle.api.kaggle_api_extended import KaggleApi
-    except ImportError as exc:
-        raise SystemExit(
-            "kaggle package not installed. Run `pip install kaggle` first."
-        ) from exc
+    except ImportError:
+        print("  kaggle package not installed - run `pip install kaggle`.")
+        return
 
     api = KaggleApi()
     try:
         api.authenticate()
-    except Exception as exc:
-        raise SystemExit(
-            "Kaggle authentication failed. Place a kaggle.json API token at "
-            "~/.kaggle/kaggle.json (chmod 600 on Linux/macOS). "
-            "Get one from https://www.kaggle.com/settings → 'Create New API Token'."
-        ) from exc
+    except Exception as e:
+        print(f"  Kaggle auth failed: {e}")
+        print("  Place a kaggle.json from https://www.kaggle.com/settings at "
+              "~/.kaggle/kaggle.json (chmod 600 on Linux/Mac).")
+        return
 
-    print(f"  [kaggle] {dataset} -> {target}")
-    api.dataset_download_files(dataset, path=str(target), quiet=False, unzip=True)
-    return target
+    KAGGLE_CACHE.mkdir(parents=True, exist_ok=True)
+    print(f"  [kaggle] {KAGGLE_DATASET}")
+    api.dataset_download_files(KAGGLE_DATASET, path=str(KAGGLE_CACHE),
+                                quiet=False, unzip=True)
+
+    # Find the pickle (prefer test split) and copy it into place.
+    test_match = next(KAGGLE_CACHE.rglob("test/char-CNN-RNN-embeddings.pickle"), None)
+    found = test_match or next(KAGGLE_CACHE.rglob("char-CNN-RNN-embeddings.pickle"), None)
+    if found is None:
+        print("  No char-CNN-RNN-embeddings.pickle inside the Kaggle dataset.")
+        return
+    EMBEDDINGS_PICKLE.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(found, EMBEDDINGS_PICKLE)
+    print(f"  [copy] {found} -> {EMBEDDINGS_PICKLE}")
 
 
-def find_pickle(root: Path) -> Path | None:
-    """Find char-CNN-RNN-embeddings.pickle inside root, preferring test/."""
-    test_match = next(root.rglob(TEST_EMBEDDINGS_GLOB), None)
-    if test_match is not None:
-        return test_match
-    return next(root.rglob(EMBEDDINGS_GLOB), None)
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--skip-embeddings", action="store_true",
+                   help="don't try to download from Kaggle")
+    args = p.parse_args()
 
-
-def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--force", action="store_true", help="re-download even if files exist")
-    p.add_argument(
-        "--root", type=Path, default=Path(__file__).resolve().parent,
-        help="project root (default: directory of this script)"
-    )
-    p.add_argument(
-        "--skip-embeddings", action="store_true",
-        help="skip Kaggle download (e.g. when a kaggle.json isn't set up yet)"
-    )
-    args = p.parse_args(argv)
-
-    weights_path = args.root / "weights" / "netG_210000.pth"
-    embeddings_dir = args.root / "stackgan" / "embeddings"
-    embeddings_pickle = embeddings_dir / "char-CNN-RNN-embeddings.pickle"
-    cache_dir = args.root / ".cache" / "kaggle"
-
-    print("Downloading StackGAN-v2 CUB pretrained generator (Google Drive)...")
-    gdrive_download(STACKGAN_V2_BIRD_WEIGHTS_ID, weights_path, args.force)
+    print("Downloading StackGAN-v2 generator...")
+    download_stackgan_weights(force=args.force)
 
     if not args.skip_embeddings:
-        print("Downloading CUB char-CNN-RNN test embeddings (Kaggle mirror)...")
-        try:
-            kaggle_dir = kaggle_download(KAGGLE_DATASET, cache_dir, args.force)
-        except SystemExit as exc:
-            print(f"  [warn] {exc}")
-            print("  Continuing without embeddings — the demo will run SD 2.1 only.")
-            kaggle_dir = None
-
-        if kaggle_dir is not None:
-            found = find_pickle(kaggle_dir)
-            if found is None:
-                print(
-                    f"  [warn] no '{EMBEDDINGS_GLOB}' inside {kaggle_dir} — "
-                    "verify the dataset's file layout."
-                )
-            else:
-                embeddings_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(found, embeddings_pickle)
-                print(f"  [copy ] {found} -> {embeddings_pickle}")
+        print("Downloading CUB embeddings (Kaggle)...")
+        download_embeddings(force=args.force)
 
     print()
-    print("Verification:")
-    for path in (weights_path, embeddings_pickle):
+    print("Done. Status:")
+    for path in (WEIGHTS_PATH, EMBEDDINGS_PICKLE):
         size = path.stat().st_size if path.exists() else 0
-        status = "OK" if size > 0 else "MISSING"
-        size_str = f"{size/1e6:.1f} MB" if size else "-"
-        print(f"  [{status:>7}] {path}  ({size_str})")
+        tag = "OK     " if size else "MISSING"
+        print(f"  [{tag}] {path}  ({size/1e6:.1f} MB)" if size
+              else f"  [{tag}] {path}")
 
-    weights_ok = weights_path.exists()
-    return 0 if weights_ok else 1
+    return 0 if WEIGHTS_PATH.exists() else 1
 
 
 if __name__ == "__main__":
