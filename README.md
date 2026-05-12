@@ -11,11 +11,23 @@ Both models are pre-trained — no training code here.
 
 ## Quick start (Colab — recommended)
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Stack-Gen-CV-Project/StackGAN/blob/main/notebooks/colab_demo.ipynb)
+Two Colab options. Either works on a free T4.
+
+**Option A — clone-and-run launcher** (small notebook, clones this repo):
+
+[![Open In Colab — launcher](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Stack-Gen-CV-Project/StackGAN/blob/main/notebooks/colab_demo.ipynb)
 
 1. Click the badge above (or open `notebooks/colab_demo.ipynb`)
 2. Set **Runtime → Change runtime type → T4 GPU**
 3. Run all cells — done
+
+**Option B — all-in-one project notebook** (every piece of code in one file, no clone needed):
+
+[![Open In Colab — full notebook](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Stack-Gen-CV-Project/StackGAN/blob/main/notebooks/project_notebook.ipynb)
+
+1. Click the badge above (or open `notebooks/project_notebook.ipynb`)
+2. Set **Runtime → Change runtime type → T4 GPU**
+3. Run all cells — same result, but you can read and edit the model code inline
 
 ## Quick start (local)
 
@@ -67,7 +79,8 @@ stackgan/
   inference.py                load weights + generate
   dropdown_captions.json      3 CUB bird embeddings
 requirements.txt
-notebooks/colab_demo.ipynb    Colab launcher (clone + run)
+notebooks/colab_demo.ipynb    Colab launcher (clones repo, then runs app.py)
+notebooks/project_notebook.ipynb  all-in-one notebook (every piece of code inline)
 ```
 
 ## Architecture: StackGAN-v2 Generator
