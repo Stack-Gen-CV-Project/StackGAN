@@ -1,9 +1,3 @@
-"""SDXL Turbo wrapper for text-to-image generation.
-
-Default: stabilityai/sdxl-turbo (ungated, no token needed).
-Override with --sd-model-id on the command line.
-"""
-
 import os
 
 import torch
@@ -13,8 +7,6 @@ DEFAULT_SD_MODEL_ID = "stabilityai/sdxl-turbo"
 
 
 class SDPipeline:
-    """Lazy-loading wrapper. Downloads the model on first generate() call."""
-
     def __init__(self, model_id=DEFAULT_SD_MODEL_ID, device="cuda"):
         self.model_id = model_id
         self.device = torch.device(device)
@@ -26,7 +18,7 @@ class SDPipeline:
         from diffusers import AutoPipelineForText2Image
 
         dtype = torch.float16 if self.device.type == "cuda" else torch.float32
-        token = os.environ.get("HF_TOKEN")  # only needed for gated models
+        token = os.environ.get("HF_TOKEN")
 
         pipe = AutoPipelineForText2Image.from_pretrained(
             self.model_id,
@@ -38,7 +30,7 @@ class SDPipeline:
         )
         pipe = pipe.to(self.device)
         try:
-            pipe.enable_vae_tiling()  # saves VRAM on T4
+            pipe.enable_vae_tiling()
         except Exception:
             pass
         self._pipe = pipe

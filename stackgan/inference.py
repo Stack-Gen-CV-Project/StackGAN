@@ -1,5 +1,3 @@
-"""Load StackGAN-v2 weights and generate 256x256 images."""
-
 import json
 import pickle
 from pathlib import Path
@@ -35,7 +33,6 @@ class StackGANInference:
         sd = torch.load(path, map_location="cpu", weights_only=False)
         if isinstance(sd, dict) and "state_dict" in sd:
             sd = sd["state_dict"]
-        # Strip "module." prefix from DataParallel checkpoints
         cleaned = {(k.replace("module.", "", 1) if k.startswith("module.") else k): v
                    for k, v in sd.items()}
         netG.load_state_dict(cleaned, strict=False)
@@ -64,8 +61,6 @@ class StackGANInference:
             emb = self.embeddings[image_idx, caption_idx, :]
             return torch.from_numpy(emb).float().unsqueeze(0).to(self.device)
 
-        # Synthetic fallback: deterministic random embedding.
-        # StackGAN's bird prior is strong enough to produce birds from noise.
         g = torch.Generator()
         g.manual_seed(int(image_idx) * 100003 + int(caption_idx) * 1009 + 17)
         return torch.randn(1, 1024, generator=g).to(self.device) * 0.5
@@ -79,7 +74,7 @@ class StackGANInference:
         z = torch.randn(1, 100, generator=g).to(self.device)
 
         fake_imgs, _, _ = self.netG(z, emb)
-        img = fake_imgs[-1][0]  # (3, 256, 256) in [-1, 1]
+        img = fake_imgs[-1][0]
         arr = ((img + 1) / 2 * 255).clamp(0, 255).byte().permute(1, 2, 0).cpu().numpy()
         return Image.fromarray(arr)
 

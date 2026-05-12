@@ -1,19 +1,12 @@
-"""StackGAN-v2 generator architecture.
-
-Ported from https://github.com/hanzhanggit/StackGAN-v2
-Only the generator (G_NET) — enough to load netG_210000.pth and run inference.
-Updated for PyTorch 2.x (no Variable wrapping, torch.sigmoid, torch.randn_like).
-"""
-
 import torch
 import torch.nn as nn
 
-# Config matching the CUB pretrained checkpoint
-Z_DIM = 100           # noise vector
-EMBEDDING_DIM = 128   # conditioning code from CA_NET
-GF_DIM = 64           # base channel width
-R_NUM = 2             # residual blocks per stage
-TEXT_DIM = 1024       # char-CNN-RNN embedding size
+
+Z_DIM = 100
+EMBEDDING_DIM = 128
+GF_DIM = 64
+R_NUM = 2
+TEXT_DIM = 1024
 
 
 def conv3x3(in_ch, out_ch):
@@ -21,7 +14,6 @@ def conv3x3(in_ch, out_ch):
 
 
 class GLU(nn.Module):
-    """Gated Linear Unit: split channels, gate with sigmoid."""
     def forward(self, x):
         nc = x.size(1) // 2
         return x[:, :nc] * torch.sigmoid(x[:, nc:])
@@ -57,7 +49,6 @@ class ResBlock(nn.Module):
 
 
 class CA_NET(nn.Module):
-    """Conditional Augmenting Network: text embedding -> (mu, logvar) -> c_code."""
     def __init__(self):
         super().__init__()
         self.fc = nn.Linear(TEXT_DIM, EMBEDDING_DIM * 4, bias=True)
@@ -77,7 +68,6 @@ class CA_NET(nn.Module):
 
 
 class INIT_STAGE_G(nn.Module):
-    """Stage 1: noise + conditioning -> 64x64 feature map."""
     def __init__(self, ngf):
         super().__init__()
         self.gf_dim = ngf
@@ -98,7 +88,6 @@ class INIT_STAGE_G(nn.Module):
 
 
 class NEXT_STAGE_G(nn.Module):
-    """Stage 2/3: refine features + upsample (64->128->256)."""
     def __init__(self, ngf, num_residual=R_NUM):
         super().__init__()
         self.jointConv = Block3x3_relu(ngf + EMBEDDING_DIM, ngf)
@@ -113,7 +102,6 @@ class NEXT_STAGE_G(nn.Module):
 
 
 class GET_IMAGE_G(nn.Module):
-    """Feature map -> 3-channel image via conv + tanh."""
     def __init__(self, ngf):
         super().__init__()
         self.img = nn.Sequential(conv3x3(ngf, 3), nn.Tanh())
@@ -123,21 +111,13 @@ class GET_IMAGE_G(nn.Module):
 
 
 class G_NET(nn.Module):
-    """Full 3-stage StackGAN-v2 generator.
-
-    Returns 3 images at increasing resolution (64, 128, 256).
-    Only the last one (256x256) is used for the demo.
-    """
     def __init__(self):
         super().__init__()
         self.ca_net = CA_NET()
-        # Stage 1: 4x4 -> 64x64
         self.h_net1 = INIT_STAGE_G(GF_DIM * 16)
         self.img_net1 = GET_IMAGE_G(GF_DIM)
-        # Stage 2: 64x64 -> 128x128
         self.h_net2 = NEXT_STAGE_G(GF_DIM)
         self.img_net2 = GET_IMAGE_G(GF_DIM // 2)
-        # Stage 3: 128x128 -> 256x256
         self.h_net3 = NEXT_STAGE_G(GF_DIM // 2)
         self.img_net3 = GET_IMAGE_G(GF_DIM // 4)
 

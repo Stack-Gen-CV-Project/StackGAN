@@ -27,11 +27,9 @@ EXAMPLE_PROMPTS = [
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--device", default="cuda", help="cuda or cpu")
-    p.add_argument("--sd-model-id", default=DEFAULT_SD_MODEL_ID,
-                   help="HuggingFace model id (default: SDXL Turbo)")
-    p.add_argument("--share", default="false",
-                   help="set 'true' for a public Gradio share URL")
+    p.add_argument("--device", default="cuda")
+    p.add_argument("--sd-model-id", default=DEFAULT_SD_MODEL_ID)
+    p.add_argument("--share", default="false")
     return p.parse_args()
 
 

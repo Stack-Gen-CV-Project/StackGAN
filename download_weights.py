@@ -1,9 +1,3 @@
-"""Download StackGAN-v2 weights and CUB embeddings.
-
-  python download_weights.py
-  python download_weights.py --skip-embeddings   # if no Kaggle token
-"""
-
 import argparse
 import shutil
 import sys
@@ -31,7 +25,6 @@ def download_stackgan_weights():
     print(f"  [get ] {url}")
     gdown.download(url, str(WEIGHTS_PATH), quiet=False)
 
-    # Google Drive sometimes returns a zip instead of the raw .pth
     with open(WEIGHTS_PATH, "rb") as f:
         is_zip = f.read(4) == b"PK\x03\x04"
     if is_zip:
@@ -84,9 +77,8 @@ def download_embeddings():
 
 
 def main():
-    p = argparse.ArgumentParser(description="Download StackGAN-v2 weights")
-    p.add_argument("--skip-embeddings", action="store_true",
-                   help="skip Kaggle download (use synthetic fallback)")
+    p = argparse.ArgumentParser()
+    p.add_argument("--skip-embeddings", action="store_true")
     args = p.parse_args()
 
     print("Downloading StackGAN-v2 generator...")
