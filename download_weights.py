@@ -1,4 +1,5 @@
 import argparse
+import os
 import shutil
 import sys
 import zipfile
@@ -14,6 +15,16 @@ HERE = Path(__file__).parent
 WEIGHTS_PATH = HERE / "weights" / "netG_210000.pth"
 EMBEDDINGS_PICKLE = HERE / "stackgan" / "embeddings" / "char-CNN-RNN-embeddings.pickle"
 KAGGLE_CACHE = HERE / ".cache" / "kaggle"
+
+
+def _have_kaggle_token():
+    if os.environ.get("KAGGLE_USERNAME") and os.environ.get("KAGGLE_KEY"):
+        return True
+    for p in (Path.home() / ".kaggle" / "kaggle.json",
+              Path("/root/.kaggle/kaggle.json")):
+        if p.exists():
+            return True
+    return False
 
 
 def download_stackgan_weights():
@@ -43,26 +54,24 @@ def download_embeddings():
         print(f"  [skip] {EMBEDDINGS_PICKLE}")
         return
 
+    if not _have_kaggle_token():
+        print("  No kaggle.json found at ~/.kaggle/kaggle.json")
+        print("  Place a token from https://www.kaggle.com/settings to enable embeddings.")
+        print("  Skipping for now — the app will use the synthetic fallback.")
+        return
+
     try:
         from kaggle.api.kaggle_api_extended import KaggleApi
-    except ImportError:
-        print("  kaggle package not installed - run: pip install kaggle")
-        return
-
-    api = KaggleApi()
-    try:
+        api = KaggleApi()
         api.authenticate()
-    except Exception as e:
-        print(f"  Kaggle auth failed: {e}")
-        print("  Place kaggle.json from https://www.kaggle.com/settings at")
-        print("  ~/.kaggle/kaggle.json (chmod 600 on Linux/Mac).")
-        print("  Skipping embeddings — the app will use synthetic fallback.")
+        KAGGLE_CACHE.mkdir(parents=True, exist_ok=True)
+        print(f"  [kaggle] {KAGGLE_DATASET}")
+        api.dataset_download_files(KAGGLE_DATASET, path=str(KAGGLE_CACHE),
+                                    quiet=False, unzip=True)
+    except BaseException as e:
+        print(f"  Kaggle download failed: {type(e).__name__}: {e}")
+        print("  Falling back to synthetic embeddings.")
         return
-
-    KAGGLE_CACHE.mkdir(parents=True, exist_ok=True)
-    print(f"  [kaggle] {KAGGLE_DATASET}")
-    api.dataset_download_files(KAGGLE_DATASET, path=str(KAGGLE_CACHE),
-                                quiet=False, unzip=True)
 
     found = (
         next(KAGGLE_CACHE.rglob("test/char-CNN-RNN-embeddings.pickle"), None)
