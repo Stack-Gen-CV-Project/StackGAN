@@ -1,22 +1,5 @@
 [
-  {"label": "Test embedding #001 (CUB index 0)",     "image_idx": 0,    "caption_idx": 0},
-  {"label": "Test embedding #002 (CUB index 50)",    "image_idx": 50,   "caption_idx": 0},
-  {"label": "Test embedding #003 (CUB index 100)",   "image_idx": 100,  "caption_idx": 0},
-  {"label": "Test embedding #004 (CUB index 200)",   "image_idx": 200,  "caption_idx": 0},
-  {"label": "Test embedding #005 (CUB index 300)",   "image_idx": 300,  "caption_idx": 0},
-  {"label": "Test embedding #006 (CUB index 400)",   "image_idx": 400,  "caption_idx": 0},
-  {"label": "Test embedding #007 (CUB index 500)",   "image_idx": 500,  "caption_idx": 0},
-  {"label": "Test embedding #008 (CUB index 600)",   "image_idx": 600,  "caption_idx": 0},
-  {"label": "Test embedding #009 (CUB index 700)",   "image_idx": 700,  "caption_idx": 0},
-  {"label": "Test embedding #010 (CUB index 800)",   "image_idx": 800,  "caption_idx": 0},
-  {"label": "Test embedding #011 (CUB index 900)",   "image_idx": 900,  "caption_idx": 0},
-  {"label": "Test embedding #012 (CUB index 1000)",  "image_idx": 1000, "caption_idx": 0},
-  {"label": "Test embedding #013 (CUB index 1100)",  "image_idx": 1100, "caption_idx": 0},
-  {"label": "Test embedding #014 (CUB index 1200)",  "image_idx": 1200, "caption_idx": 0},
-  {"label": "Test embedding #015 (CUB index 1400)",  "image_idx": 1400, "caption_idx": 0},
-  {"label": "Test embedding #016 (CUB index 1600)",  "image_idx": 1600, "caption_idx": 0},
-  {"label": "Test embedding #017 (CUB index 1800)",  "image_idx": 1800, "caption_idx": 0},
-  {"label": "Test embedding #018 (CUB index 2000)",  "image_idx": 2000, "caption_idx": 0},
-  {"label": "Test embedding #019 (CUB index 2300)",  "image_idx": 2300, "caption_idx": 0},
-  {"label": "Test embedding #020 (CUB index 2700)",  "image_idx": 2700, "caption_idx": 0}
+  {"label": "CUB Bird #1 (index 0)",    "image_idx": 0,    "caption_idx": 0},
+  {"label": "CUB Bird #2 (index 1000)", "image_idx": 1000, "caption_idx": 0},
+  {"label": "CUB Bird #3 (index 2700)", "image_idx": 2700, "caption_idx": 0}
 ]

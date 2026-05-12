@@ -1,12 +1,11 @@
-torch>=2.4
-torchvision>=0.19
+torch>=2.0
+torchvision>=0.15
 diffusers>=0.30
-transformers>=4.45
-accelerate>=0.34
+transformers>=4.40
+accelerate>=0.30
 gradio>=5.0
-huggingface_hub>=0.30
+huggingface_hub>=0.20
 Pillow>=10.0
-numpy>=1.26
-gdown>=5.1
+numpy>=1.24
+gdown>=5.0
 kaggle>=1.6
-audioop-lts>=0.2; python_version >= "3.13"
