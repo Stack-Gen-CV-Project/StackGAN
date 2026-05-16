@@ -10,5 +10,16 @@ outputs/
 .ipynb_checkpoints/
 .vscode/
 .idea/
+.claude/
 flagged/
 gradio_cached_examples/
+
+# build/working artifacts (kept locally, not in repo)
+diagrams.md
+report.docx
+report.pdf
+scripts/
+
+# Office temp files
+~$*
+~WRL*.tmp
